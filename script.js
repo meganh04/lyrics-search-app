@@ -118,6 +118,7 @@ function showDataSafe(lyrics) {
   }
 }
 
+
 // Get lyrics button click
 result.addEventListener('click', (e) => {
   const clickedEl = e.target;

@@ -4,21 +4,50 @@ const search = document.getElementById('search');
 const result = document.getElementById('result');
 const more = document.getElementById('more');
 
+// Store the last search/pagination results so we can return to them
+let lastResults = null;
+
 const apiURL = 'https://api.lyrics.ovh';
 
 // Search by song or artist
 async function searchSongs(term) {
   try {
-    const res = await fetch(`${apiURL}/suggest/${term}`);
-    if (!res.ok) throw new Error(`API error: ${res.status}`);
-
+    const res = await robustFetch(`${apiURL}/suggest/${encodeURIComponent(term)}`);
     const data = await res.json();
+    // remember results so we can go back from lyrics view
+    lastResults = data;
 
     showDataSafe(data);
   } catch (error) {
     console.error('Error fetching data:', error);
-    result.innerHTML = `<p>Error: ${error.message}. The API might be temporarily unavailable.</p>`;
+    result.innerHTML = `<p>Error: ${error.message}. The API might be temporarily unavailable or blocked by CORS.</p>`;
   }
+}
+
+// Robust fetch that tries direct fetch then public CORS proxies as fallbacks
+async function robustFetch(url) {
+  const attempts = [
+    async (u) => fetch(u),
+    async (u) => fetch('https://corsproxy.io/?' + encodeURIComponent(u)),
+    async (u) => fetch('https://api.allorigins.win/raw?url=' + encodeURIComponent(u)),
+    async (u) => fetch('https://thingproxy.freeboard.io/fetch/' + u),
+  ];
+
+  let lastError = null;
+  for (const attempt of attempts) {
+    try {
+      const res = await attempt(url);
+      if (!res) throw new Error('No response');
+      if (!res.ok) throw new Error(`API error: ${res.status}`);
+      console.log('robustFetch: succeeded with', res.url);
+      return res;
+    } catch (err) {
+      console.warn('robustFetch attempt failed:', err);
+      lastError = err;
+    }
+  }
+
+  throw lastError || new Error('All fetch attempts failed');
 }
 
 // Event listeners
@@ -134,7 +163,7 @@ result.addEventListener('click', (e) => {
 
 // Get lyrics for song
 async function getLyricsUnsafe(artist, songTitle) {
-  const res = await fetch(`${apiURL}/v1/${artist}/${songTitle}`);
+  const res = await robustFetch(`${apiURL}/v1/${encodeURIComponent(artist)}/${encodeURIComponent(songTitle)}`);
   const data = await res.json();
 
   if (data.error) {
@@ -146,13 +175,24 @@ async function getLyricsUnsafe(artist, songTitle) {
             <h2><strong>${artist}</strong> - ${songTitle}</h2>
             <span>${lyrics}</span>
         `;
+      // Add back button
+      more.innerHTML = '';
+      const backButton = document.createElement('button');
+      backButton.className = 'btn';
+      backButton.textContent = 'Back to results';
+      backButton.addEventListener('click', () => {
+        if (lastResults) {
+          showDataSafe(lastResults);
+        }
+      });
+      more.appendChild(backButton);
   }
 
   more.innerHTML = '';
 }
 
 async function getLyricsSafe(artist, songTitle) {
-  const res = await fetch(`${apiURL}/v1/${artist}/${songTitle}`);
+  const res = await robustFetch(`${apiURL}/v1/${encodeURIComponent(artist)}/${encodeURIComponent(songTitle)}`);
   const data = await res.json();
 
   result.innerHTML = '';
@@ -184,4 +224,47 @@ async function getLyricsSafe(artist, songTitle) {
   });
 
   result.append(span);
+    // Add back button
+    more.innerHTML = '';
+    const backButton = document.createElement('button');
+    backButton.className = 'btn';
+    backButton.textContent = 'Back to results';
+    backButton.addEventListener('click', () => {
+      if (lastResults) {
+        showDataSafe(lastResults);
+      }
+    });
+    more.appendChild(backButton);
 }
+  // Pagination handler for Next/Prev buttons
+  async function getMoreSongs(url) {
+    // Try direct fetch first, then fall back to several public CORS proxies
+    const attempts = [
+      async (u) => fetch(u),
+      async (u) => fetch('https://corsproxy.io/?' + encodeURIComponent(u)),
+      async (u) => fetch('https://api.allorigins.win/raw?url=' + encodeURIComponent(u)),
+      async (u) => fetch('https://thingproxy.freeboard.io/fetch/' + u),
+    ];
+
+    let lastError = null;
+    for (const attempt of attempts) {
+      try {
+        const res = await attempt(url);
+        if (!res) throw new Error('No response');
+        if (!res.ok) throw new Error(`API error: ${res.status}`);
+        const data = await res.json();
+        // remember results so we can go back from lyrics view
+        lastResults = data;
+
+        showDataSafe(data);
+        return;
+      } catch (err) {
+        // Keep trying next proxy
+        console.warn('Pagination fetch attempt failed:', err);
+        lastError = err;
+      }
+    }
+
+    console.error('All pagination fetch attempts failed:', lastError);
+    result.innerHTML = `<p>Error fetching more songs: ${lastError ? lastError.message : 'unknown error'}. Try reloading or try a new search.</p>`;
+  }

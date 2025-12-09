@@ -22,7 +22,7 @@ button:focus {
 }
 
 header {
-  background-image: url('https://images.unsplash.com/photo-1510915361894-db8b60106cb1?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=crop&w=1350&q=80');
+  background-image: url(img/music.jpg);
   background-repeat: no-repeat;
   background-size: cover;
   background-position: center center;
@@ -69,13 +69,14 @@ form input {
   font-size: 16px;
   padding: 15px 30px;
   width: 100%;
+  color: lightcoral;
 }
 
 form button {
   position: absolute;
   top: 2px;
   right: 2px;
-  background-color: #e056fd;
+  background-color: lightblue;
   border: 0;
   border-radius: 50px;
   color: #fff;
@@ -85,7 +86,7 @@ form button {
 
 /* Injecting the btn class via JS */
 .btn {
-  background-color: #8d56fd;
+  background-color: lightpink;
   border: 0;
   border-radius: 10px;
   color: #fff;
@@ -96,6 +97,7 @@ form button {
 ul.songs {
   list-style-type: none;
   padding: 0;
+  color: lightblue;
 }
 
 ul.songs li {
